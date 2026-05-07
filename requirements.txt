@@ -1,7 +1,8 @@
 fastapi
 uvicorn[standard]
 chromadb
-google-generativeai
+groq
 requests
 python-dotenv
 pytest
+langgraph

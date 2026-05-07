@@ -1,35 +1,53 @@
-# Project State
+# Project State (حالة المشروع)
 
-## Session Resumption Point (نقطة الانطلاق للجلسة القادمة)
-- **Next Task:** Start implementing the AI Brain `run_agent_loop(...)` in `core/agent.py` using TDD.
-- **Prerequisite:** Ensure a Google Gemini API Key is available in the `.env` file to start connecting with the AI model.
+## ما تم إنجازه حتى الآن (Completed Work)
 
-## System Architecture & Libraries
-- **LLM**: Gemini 1.5 Flash (Google AI Studio) for text generation and Function Calling.
-- **Embeddings**: `nomic-embed-text` via Ollama (Currently using default ChromaDB for TDD phase).
-- **Vector DB**: ChromaDB (Local).
-- **Backend Framework**: FastAPI.
-- **Database**: SQLite.
-- **Integration**: Telegram Bot API via ngrok.
-- **Core Logic**: Raw Python (No LangChain/LangGraph) with strict TDD.
+لقد قمنا ببناء الأساس المعرفي والمنطقي للمساعد الذكي بالكامل عبر مجموعة من الوحدات (Modules) المنفصلة، وتم اختبار كل وحدة باستخدام منهجية TDD (التطوير الموجه بالاختبارات):
 
-## Completed Functions Blueprint
-| Function/API Name | Target File/Module | Purpose |
+1. **وحدة قواعد البيانات (Database - `db/database.py`)**:
+   - تم بناء دالة `init_db` لإنشاء جدول الطلبات (orders) في قاعدة بيانات `SQLite`.
+   - تم بناء دالة `save_order` التي تقوم بحفظ بيانات العميل (رقم المنتج، الاسم، الهاتف) لاستخدامها لاحقاً بواسطة الذكاء الاصطناعي.
+
+2. **وحدة البحث الذكي (RAG - `core/rag.py`)**:
+   - تم بناء دالة `init_vector_store` لقراءة المنتجات من `products.json` وتخزينها كمتجهات (Embeddings) في قاعدة بيانات `ChromaDB`.
+   - تم بناء دالة `search_products` التي تقوم بالبحث الدلالي (بالمعنى) عن المنتجات بناءً على طلبات المستخدم.
+
+3. **العقل المدبر للـ Agent (AI Brain - `core/agent.py`)**:
+   - تم تغيير النموذج المعتمد إلى `gemini-2.5-flash` لأنه الإصدار المتاح والمدعوم حالياً.
+   - تم برمجة الـ `run_agent_loop` لتعمل كمدير للحوار (Orchestrator).
+   - **الذاكرة (Stateful Chat):** الدالة تستقبل وتُرجع كائن `chat_session` لكي يتذكر المساعد سياق الحديث (Context) مع العميل.
+   - **استخدام الأدوات (Function Calling):** تم تزويد النموذج بصلاحية استدعاء دالتي البحث `search_store_products` وحفظ الطلبات `save_customer_order` بشكل تلقائي عندما يحتاج لذلك.
+   - تم برمجة سكريبت `chat.py` كواجهة تجريبية (CLI) لاختبار المحادثة مباشرة من الـ Terminal.
+
+---
+
+## نقطة الانطلاق القادمة (Next Task)
+
+الآن أصبح "العقل" جاهزاً. الخطوة القادمة هي توصيل هذا العقل مع العالم الخارجي (تطبيق تيليجرام).
+- **الهدف القادم**: برمجة الـ FastAPI Webhook لكي يستقبل الرسائل من تيليجرام ويحيلها إلى `run_agent_loop`، ثم يعيد إرسال الرد إلى العميل.
+- **الملفات المستهدفة**: العمل سيكون في مجلد `api` (تحديداً `api/webhook.py` و `main.py`).
+
+---
+
+## المخطط الهيكلي للوظائف المتبقية (Pending Blueprint)
+
+| اسم الدالة / الـ API | الملف المستهدف | الوظيفة |
 | --- | --- | --- |
-| `load_products()` / `init_vector_store()` | `core/rag.py` | Initialize ChromaDB with fake products. |
-| `search_products(query)` | `core/rag.py` | Semantic search in ChromaDB. |
-| `init_db()` | `db/database.py` | Create SQLite tables. |
-| `save_order(...)` | `db/database.py` | Function for AI to call to save an order. |
+| `telegram_webhook()` | `api/webhook.py` | نقطة الاستقبال (Endpoint) التي يرسل لها تيليجرام الرسائل الجديدة. |
+| `send_telegram_message()` | `api/webhook.py` | دالة لإرسال الردود من الـ Agent إلى المستخدم عبر Telegram API. |
+| `FastAPI App Setup` | `main.py` | تشغيل السيرفر وربط الـ Routers مع بعضها. |
 
-## Pending Functions Blueprint
-| Function/API Name | Target File/Module | Purpose |
-| --- | --- | --- |
-| `run_agent_loop(...)` | `core/agent.py` | Gemini API interaction loop. |
-| `telegram_webhook()` | `api/webhook.py` | FastAPI endpoint for Telegram. |
-| `send_message(...)` | `api/webhook.py` | Send message back via Telegram API. |
+---
 
-## Technical Decisions
-- Using Raw Python for deep understanding of AI Agent loops.
-- `products.json` will serve as the initial mock data source.
-- TDD approach: Each function will have a test before implementation.
-- API Testing will be done using Apidog. Server via uvicorn.
+## التقنيات المستخدمة
+- **النموذج الذكي**: `gemini-2.5-flash` (Google AI Studio).
+- **قاعدة البيانات المتجهة (Vector DB)**: `ChromaDB` (Local).
+- **قاعدة البيانات العادية**: `SQLite`.
+- **الواجهة الخلفية (Backend)**: `FastAPI`.
+- **منهجية العمل**: `TDD` مع اختبارات باستخدام `pytest`.
+
+---
+
+## التحسينات المستقبلية (Future Refactoring & Optimizations)
+- **تحسين أداء قاعدة البيانات (Vector DB Optimization)**: تعديل `core/rag.py` لكي لا تقوم بقراءة الـ `JSON` وعمل `Upsert` في كل مرة يبحث فيها المستخدم، بل تقوم بالاتصال بقاعدة البيانات الجاهزة فقط.
+- **تطوير هندسة الأوامر (System Prompt Engineering)**: تعديل شخصية المساعد ليكون أكثر بشرية وعفوية، وإضافة طبقات حماية (Prompt Injection Defenses) لمنع التلاعب في الأوامر.
