@@ -1,1 +1,22 @@
+# Environments
 .env
+
+# Python Caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Databases (Do not commit DBs to GitHub)
+chroma_db/
+orders.db
+test_orders.db
+
+# Virtual Environments
+venv/
+env/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
