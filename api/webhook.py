@@ -1,7 +1,8 @@
 import os
 import requests
 from fastapi import APIRouter, Request, BackgroundTasks
-from core.agent import run_agent_loop
+from langchain_core.messages import HumanMessage
+from agent.graph import agent_graph
 
 router = APIRouter()
 
@@ -26,24 +27,37 @@ def send_telegram_message(chat_id: int, text: str):
 
 def process_telegram_update(chat_id: int, user_text: str):
     """
-    تقوم هذه الدالة بمعالجة الرسالة وإرسالها للعقل المدبر (الـ Agent) ثم الرد على تيليجرام.
-    نضعها في دالة منفصلة لتعمل في الخلفية (Background Task) لكي لا نؤخر الرد على سيرفرات تيليجرام.
+    تقوم هذه الدالة بمعالجة الرسالة وإرسالها لمسار LangGraph ثم الرد على تيليجرام.
     """
-    # جلب جلسة المحادثة السابقة للمستخدم (إذا كانت موجودة)
-    session = user_sessions.get(chat_id)
+    # جلب جلسة المحادثة السابقة أو إنشاء واحدة جديدة
+    session = user_sessions.get(chat_id, {
+        "messages": [],
+        "funnel_stage": "greeting",
+        "guardrail_passed": True
+    })
     
     try:
-        # إرسال الرسالة للعقل المدبر
-        response_text, updated_session = run_agent_loop(user_text, chat_session=session)
+        # 1. تجهيز المدخلات مع الحالة الكاملة
+        new_input = {
+            "messages": session["messages"] + [HumanMessage(content=user_text)],
+            "funnel_stage": session.get("funnel_stage", "greeting"),
+            "guardrail_passed": True
+        }
         
-        # حفظ الجلسة الجديدة ليتذكر السياق في الرسالة القادمة
-        user_sessions[chat_id] = updated_session
+        # 2. إطلاق الـ Graph بكامل مراحله (حارس → موديل → أدوات)
+        new_state = agent_graph.invoke(new_input)
         
-        # إرسال الرد للمستخدم
+        # 3. حفظ "حقيبة الذاكرة" الجديدة للمستخدم
+        user_sessions[chat_id] = new_state
+        
+        # 4. استخراج الرد النهائي (دائماً يكون آخر رسالة في الحقيبة)
+        response_text = new_state["messages"][-1].content
+        
+        # 5. إرسال الرد لتطبيق تيليجرام
         send_telegram_message(chat_id, response_text)
         
     except Exception as e:
-        print(f"Agent Error: {e}")
+        print(f"Agent Graph Error: {e}")
         send_telegram_message(chat_id, "عذراً، أواجه مشكلة تقنية حالياً. يرجى المحاولة لاحقاً.")
 
 @router.post("/webhook")

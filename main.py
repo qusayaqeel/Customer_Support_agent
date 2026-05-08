@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 from dotenv import load_dotenv
+
+# 1. تحميل متغيرات البيئة (API Keys) قبل استيراد أي ملفات أخرى لتجنب أخطاء المفاتيح السرية
+load_dotenv()
+
 from api.webhook import router as webhook_router
 from core.rag import init_vector_store
 from db.database import init_db
-
-# 1. تحميل متغيرات البيئة (API Keys)
-load_dotenv()
 
 # 2. تهيئة قواعد البيانات مرة واحدة عند تشغيل السيرفر
 print("جاري تهيئة قواعد البيانات...")

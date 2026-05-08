@@ -10,15 +10,28 @@ SQLITE_DB_PATH = "orders.db"
 @tool
 def search_store_products(query: str) -> str:
     """
-    استخدم هذه الأداة للبحث عن المنتجات في المتجر بناءً على طلب المستخدم. (مثل: لابتوب، ايفون، ساعات).
+    استخدم هذه الأداة للبحث عن المنتجات في المتجر بناءً على طلب المستخدم.
     
     Args:
         query: كلمة البحث (مثال: لابتوب ديل، ايفون 15)
     """
-    # تهيئة الاتصال بقاعدة المتجهات والبحث فيها
     collection = init_vector_store(file_path=PRODUCTS_FILE, db_path=CHROMA_DB_PATH)
     results = search_products(query, collection)
-    return str(results)
+    
+    # تنسيق النتائج برمجياً - هنا نتحكم بالضبط بما يراه الموديل
+    # لا نرسل الـ stock ولا الـ metadata الخام
+    if not results:
+        return "لا توجد نتائج مطابقة للبحث"
+    
+    formatted_lines = []
+    for item in results:
+        product_id = item["id"]
+        name = item["metadata"]["name"]
+        price = item["metadata"]["price"]
+        description = item["document"].split(" - ")[1] if " - " in item["document"] else ""
+        formatted_lines.append(f"المنتج: {name} | الكود: {product_id} | السعر: {price} شيكل | الوصف: {description}")
+    
+    return "\n".join(formatted_lines)
 
 @tool
 def save_customer_order(product_id: str, customer_name: str, customer_phone: str) -> str:
