@@ -130,7 +130,7 @@ RULES:
 1. NEVER mention ANY product name or price unless it was returned by the tool in this conversation.
 2. If the tool returns results, discuss ONLY those exact products.
 3. If the tool returns "لا توجد نتائج مطابقة", say we don't have it currently, but you can order it specially for them. Do NOT suggest products from your memory.
-4. If the user asks for a discount, you are authorized to give a maximum discount of 100 shekels on any product. If they insist on a bigger discount, tell them you must return to management (الإدارة) for approval.
+4. الأسعار ثابتة ونهائية. ممنوع تقديم أي خصم. إذا طلب العميل خصماً، اعتذر بلطف وأخبره أن السعر ثابت. يُمنع منعاً باتاً اختراع خصم أو تعديل السعر.
 
 === CLOSING THE SALE ===
 When the user agrees to buy a specific product, YOU MUST GATHER ALL REQUIRED INFORMATION BEFORE CALLING THE TOOL.
@@ -263,33 +263,31 @@ def output_guardrail(state):
                     except:
                         pass
                         
-        # السماح بالرقم 100 دائماً لأن البوت مسموح له بتقديم خصم بـ 100 شيكل
-        tool_numbers.append(100)
-        
-        # السماح بالفروق الحسابية (الخصومات التي يطلبها العميل) لكي لا تُعتبر هلوسة
-        for t in tool_numbers:
-            for u in user_numbers:
-                tool_numbers.append(abs(t - u))
-                
         # إذا لم يكن هناك نتائج بحث، لكن الموديل ذكر سعراً، فهذه هلوسة مؤكدة!
         if not tool_numbers:
             return {
-                "messages": [AIMessage(content="عذراً، حدث خطأ تقني. يرجى إعادة توضيح طلبك.")]
+                "messages": [AIMessage(
+                    content="عذراً، صار عندي خربطة بالأسعار. ممكن تعيد طلبك لحتى أتأكد من النظام؟",
+                    id=last_message.id
+                )]
             }
             
         # التحقق من كل سعر ذكره الموديل
         for num_val in mentioned_numbers:
             price_valid = False
             for t_val in tool_numbers:
-                # نسمح بخصم حتى 100 شيكل (السعر المذكور إما يطابق الأصلي أو أقل منه بـ 100 كحد أقصى)
-                if num_val == t_val or (t_val - 100 <= num_val <= t_val):
+                # يجب أن يطابق السعر المذكور أحد الأسعار أو الأرقام المسموحة تماماً
+                if num_val == t_val:
                     price_valid = True
                     break
                     
             if not price_valid:
                 print(f"[Guardrail Blocked] Hallucinated price: {num_val}")
                 return {
-                    "messages": [AIMessage(content="عذراً، أرجو المعذرة، حدث خطأ في النظام بالنسبة للسعر المذكور. سأتأكد من السعر لك فوراً.")]
+                    "messages": [AIMessage(
+                        content="عذراً، صار عندي خربطة بالأسعار. ممكن تعيد طلبك لحتى أتأكد من النظام؟",
+                        id=last_message.id
+                    )]
                 }
                 
     return {}
