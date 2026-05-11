@@ -44,8 +44,8 @@ def test_save_order(tmp_path):
         db_path=db_path
     )
     
-    # 3. التحقق: لازم الدالة ترجع True كدليل على النجاح
-    assert result is True, "الدالة لازم ترجع True عند نجاح الحفظ"
+    # 3. التحقق: لازم الدالة ترجع order_id (رقم صحيح) كدليل على النجاح
+    assert result is not None and isinstance(result, int), "الدالة لازم ترجع order_id عند نجاح الحفظ"
     
     # نتأكد إنو البيانات فعلاً نزلت في الجدول
     conn = sqlite3.connect(db_path)

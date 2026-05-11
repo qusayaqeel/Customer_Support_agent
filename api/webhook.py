@@ -1,18 +1,19 @@
 import os
 import requests
+import time
 from fastapi import APIRouter, Request, BackgroundTasks
 from langchain_core.messages import HumanMessage
 from agent.graph import agent_graph
 
 router = APIRouter()
 
-# ذاكرة مؤقتة بسيطة لحفظ جلسات المحادثة لكل مستخدم بناءً على الـ chat_id الخاص به
+# ذاكرة مؤقتة لحفظ جلسات المحادثة
 user_sessions = {}
+SESSION_TIMEOUT = 30 * 60  # 30 دقيقة
+MAX_MESSAGES = 20  # الاحتفاظ بآخر 20 رسالة فقط (10 ذهاب و 10 إياب)
 
 def send_telegram_message(chat_id: int, text: str):
-    """
-    تقوم هذه الدالة بإرسال رسالة إلى المستخدم عبر واجهة تيليجرام (Telegram Bot API).
-    """
+    """إرسال رسالة إلى تيليجرام"""
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
@@ -26,34 +27,57 @@ def send_telegram_message(chat_id: int, text: str):
         print(f"Error sending message to Telegram: {e}")
 
 def process_telegram_update(chat_id: int, user_text: str):
-    """
-    تقوم هذه الدالة بمعالجة الرسالة وإرسالها لمسار LangGraph ثم الرد على تيليجرام.
-    """
-    # جلب جلسة المحادثة السابقة أو إنشاء واحدة جديدة
-    session = user_sessions.get(chat_id, {
-        "messages": [],
-        "funnel_stage": "greeting",
-        "guardrail_passed": True
-    })
+    """معالجة رسائل تيليجرام وإدارة الذاكرة (Session Management)"""
+    current_time = time.time()
     
+    # 1. تصفير الجلسة إذا أرسل العميل /start
+    if user_text.strip() == "/start":
+        if chat_id in user_sessions:
+            del user_sessions[chat_id]
+        send_telegram_message(chat_id, "يا هلا فيك بمتجر سمارت ستور! أنا أبو العبد، تفضل كيف بقدر أساعدك اليوم؟")
+        return
+
+    # 2. جلب الجلسة الحالية
+    session = user_sessions.get(chat_id)
+    
+    # 3. فحص وقت انتهاء الجلسة (TTL)
+    if session:
+        last_activity = session.get("last_activity", 0)
+        if current_time - last_activity > SESSION_TIMEOUT:
+            print(f"Session expired for {chat_id}. Creating new session.")
+            session = None  # تصفير
+            
+    if not session:
+        session = {
+            "messages": [],
+            "funnel_stage": "greeting",
+            "guardrail_passed": True,
+            "last_activity": current_time
+        }
+        
     try:
-        # 1. تجهيز المدخلات مع الحالة الكاملة
+        # 4. تقليم الرسائل القديمة (Sliding Window)
+        messages_history = session["messages"]
+        if len(messages_history) > MAX_MESSAGES:
+            # نحتفظ بآخر MAX_MESSAGES رسالة (مع الحرص على عدم كسر الـ Tool calls)
+            messages_history = messages_history[-MAX_MESSAGES:]
+            
+        # 5. تجهيز المدخلات
         new_input = {
-            "messages": session["messages"] + [HumanMessage(content=user_text)],
+            "messages": messages_history + [HumanMessage(content=user_text)],
             "funnel_stage": session.get("funnel_stage", "greeting"),
             "guardrail_passed": True
         }
         
-        # 2. إطلاق الـ Graph بكامل مراحله (حارس → موديل → أدوات)
+        # 6. إطلاق الـ Graph
         new_state = agent_graph.invoke(new_input)
         
-        # 3. حفظ "حقيبة الذاكرة" الجديدة للمستخدم
+        # 7. تحديث الذاكرة
+        new_state["last_activity"] = current_time
         user_sessions[chat_id] = new_state
         
-        # 4. استخراج الرد النهائي (دائماً يكون آخر رسالة في الحقيبة)
+        # 8. استخراج وإرسال الرد
         response_text = new_state["messages"][-1].content
-        
-        # 5. إرسال الرد لتطبيق تيليجرام
         send_telegram_message(chat_id, response_text)
         
     except Exception as e:

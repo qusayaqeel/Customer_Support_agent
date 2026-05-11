@@ -7,3 +7,4 @@ python-dotenv
 pytest
 langgraph
 langchain-groq
+sentence-transformers

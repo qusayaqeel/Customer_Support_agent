@@ -17,16 +17,27 @@ def init_db(db_path: str = "orders.db"):
             product_id TEXT NOT NULL,
             customer_name TEXT NOT NULL,
             customer_phone TEXT NOT NULL,
+            city TEXT,
+            address TEXT,
+            payment_method TEXT,
             order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    
+    # محاولة إضافة الحقول للجدول القديم إن وجدت
+    try:
+        cursor.execute('ALTER TABLE orders ADD COLUMN city TEXT')
+        cursor.execute('ALTER TABLE orders ADD COLUMN address TEXT')
+        cursor.execute('ALTER TABLE orders ADD COLUMN payment_method TEXT')
+    except sqlite3.OperationalError:
+        pass
     
     # 3. حفظ التغييرات (Commit) وإغلاق الجسر (Close)
     conn.commit()
     conn.close()
 
 
-def save_order(product_id: str, customer_name: str, customer_phone: str, db_path: str = "orders.db"):
+def save_order(product_id: str, customer_name: str, customer_phone: str, city: str = "", address: str = "", payment_method: str = "", db_path: str = "orders.db"):
     """
     تقوم بحفظ بيانات الطلب الجديد في قاعدة البيانات.
     """
@@ -38,14 +49,15 @@ def save_order(product_id: str, customer_name: str, customer_phone: str, db_path
         # ملاحظة أمنية: بنستخدم علامات الاستفهام (?) بدل ما ندمج النصوص مباشرة 
         # عشان نمنع ثغرة أمنية خطيرة اسمها (SQL Injection)
         cursor.execute('''
-            INSERT INTO orders (product_id, customer_name, customer_phone)
-            VALUES (?, ?, ?)
-        ''', (product_id, customer_name, customer_phone))
+            INSERT INTO orders (product_id, customer_name, customer_phone, city, address, payment_method)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (product_id, customer_name, customer_phone, city, address, payment_method))
         
+        order_id = cursor.lastrowid
         conn.commit()
         conn.close()
-        return True
+        return order_id
         
     except Exception as e:
         print(f"Error saving order: {e}")
-        return False
+        return None

@@ -26,14 +26,14 @@ graph.py - مخطط النظام (System Graph) v2
     نعم │       لا
         │        │
         ▼        ▼
-  ┌──────────┐ ┌──────────────────┐
-  │  tools   │ │ output_guardrail │  ← حارس المخرجات: يفحص رد الموديل
-  └────┬─────┘ └────────┬─────────┘
-       │                │
-       ▼                ▼
-  ┌──────────┐       ┌──────┐
-  │ chatbot  │       │ END  │
-  └──────────┘       └──────┘
+  ┌──────────┐ ┌──────┐
+  │  tools   │ │ END  │
+  └────┬─────┘ └──────┘
+       │
+       ▼
+  ┌──────────┐
+  │ chatbot  │
+  └──────────┘
 """
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import tools_condition
@@ -47,7 +47,7 @@ from agent.nodes import input_guardrail, chatbot, tools_node, output_guardrail
 # ============================================================
 graph_builder = StateGraph(AgentState)
 
-# 1. تسجيل العُقد (4 عُقد)
+# 1. تسجيل العُقد
 graph_builder.add_node("input_guardrail", input_guardrail)
 graph_builder.add_node("chatbot", chatbot)
 graph_builder.add_node("tools", tools_node)
@@ -71,25 +71,17 @@ graph_builder.add_conditional_edges(
 
 # 4. التوجيه بعد الموديل
 # إذا طلب أداة → tools
-# إذا لم يطلب → output_guardrail (فحص الرد قبل الإرسال)
-def chatbot_router(state):
-    """بديل لـ tools_condition يوجه للـ output_guardrail بدل END"""
-    last_msg = state["messages"][-1]
-    if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
-        return "tools"
-    else:
-        return "output_guardrail"
-
+# إذا لم يطلب → فحص المخرجات
 graph_builder.add_conditional_edges(
     "chatbot",
-    chatbot_router,
-    {"tools": "tools", "output_guardrail": "output_guardrail"}
+    tools_condition,
+    {"tools": "tools", END: "output_guardrail"}
 )
 
 # 5. بعد الأدوات → يعود للموديل
 graph_builder.add_edge("tools", "chatbot")
 
-# 6. بعد حارس المخرجات → ينتهي
+# 6. بعد فحص المخرجات → ينتهي
 graph_builder.add_edge("output_guardrail", END)
 
 # ============================================================
