@@ -7,10 +7,9 @@ __pycache__/
 *$py.class
 .pytest_cache/
 
-# Databases (Do not commit DBs to GitHub)
+# Databases (auto-generated, do not commit)
 chroma_db/
-orders.db
-test_orders.db
+*.db
 
 # Virtual Environments
 venv/
@@ -20,3 +19,12 @@ env/
 # IDEs
 .vscode/
 .idea/
+
+# Debug / scratch files
+scratch/
+fake_chroma_db/
+test_all.txt
+test_out.txt
+
+# Node modules (frontend)
+node_modules/

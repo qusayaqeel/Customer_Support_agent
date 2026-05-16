@@ -1,27 +1,35 @@
 from fastapi import FastAPI
 from dotenv import load_dotenv
 
-# 1. تحميل متغيرات البيئة (API Keys) قبل استيراد أي ملفات أخرى لتجنب أخطاء المفاتيح السرية
+# 1. Load environment variables (API Keys) before importing other modules
 load_dotenv()
 
-from api.webhook import router as webhook_router
+from fastapi.middleware.cors import CORSMiddleware
+from api.chat import router as chat_router
 from core.rag import init_vector_store
 from db.database import init_db
 
-# 2. تهيئة قواعد البيانات مرة واحدة عند تشغيل السيرفر
-print("جاري تهيئة قواعد البيانات...")
+# 2. Initialize databases once at server startup
+print("Initializing databases...")
 init_vector_store("data/products.json", "chroma_db")
 init_db("orders.db")
 
-# 3. إنشاء تطبيق FastAPI
+# 3. Create FastAPI application
 app = FastAPI(title="Customer Support AI Agent")
 
-# 4. ربط مسارات الـ Webhook بالتطبيق
-app.include_router(webhook_router)
+# Add CORS middleware to allow React frontend connections
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For local testing
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 4. Register API routers
+app.include_router(chat_router)
 
 @app.get("/")
 def root():
-    """
-    نقطة فحص بسيطة للتأكد من أن السيرفر يعمل.
-    """
-    return {"message": "Customer Support AI Agent is running!"}
+    """Simple health check endpoint to verify server is running."""
+    return {"message": "Customer Support AI Agent Backend is running!"}

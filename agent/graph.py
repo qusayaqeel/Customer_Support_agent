@@ -1,39 +1,39 @@
 """
-graph.py - مخطط النظام (System Graph) v2
+graph.py - System Graph (LangGraph State Machine)
 
-المعمارية:
+Architecture:
 
     START
       │
       ▼
   ┌─────────────────┐
-  │ input_guardrail  │  ← حارس المدخلات: يفحص الرسالة برمجياً
+  │ input_guardrail  │  ← Programmatic message filter (no LLM)
   └────────┬────────┘
            │
      ┌─────┴─────┐
-     │  آمنة؟    │
+     │   Safe?   │
      └─────┬─────┘
-       نعم │        لا
+       Yes │        No
            │         │
            ▼         ▼
   ┌────────────┐  ┌──────┐
-  │  chatbot   │  │ END  │  ← الرسالة الخطيرة تُحظر
+  │  chatbot   │  │ END  │  ← Dangerous message blocked
   └─────┬──────┘  └──────┘
         │
   ┌─────┴─────┐
   │ tool_call? │
   └─────┬─────┘
-    نعم │       لا
+    Yes │       No
         │        │
         ▼        ▼
-  ┌──────────┐ ┌──────┐
-  │  tools   │ │ END  │
-  └────┬─────┘ └──────┘
-       │
-       ▼
-  ┌──────────┐
-  │ chatbot  │
-  └──────────┘
+  ┌──────────┐ ┌──────────────────┐
+  │  tools   │ │ output_guardrail │
+  └────┬─────┘ └────────┬─────────┘
+       │                │
+       ▼                ▼
+  ┌──────────┐       ┌──────┐
+  │ chatbot  │       │ END  │
+  └──────────┘       └──────┘
 """
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import tools_condition
@@ -43,20 +43,20 @@ from agent.nodes import input_guardrail, chatbot, tools_node, output_guardrail
 
 
 # ============================================================
-# بناء المخطط (Graph Construction)
+# Graph Construction
 # ============================================================
 graph_builder = StateGraph(AgentState)
 
-# 1. تسجيل العُقد
+# 1. Register nodes
 graph_builder.add_node("input_guardrail", input_guardrail)
 graph_builder.add_node("chatbot", chatbot)
 graph_builder.add_node("tools", tools_node)
 graph_builder.add_node("output_guardrail", output_guardrail)
 
-# 2. نقطة البداية
+# 2. Set entry point
 graph_builder.set_entry_point("input_guardrail")
 
-# 3. التوجيه بعد حارس المدخلات
+# 3. Conditional routing after input guardrail
 def guardrail_router(state):
     if state.get("guardrail_passed", True):
         return "chatbot"
@@ -69,22 +69,22 @@ graph_builder.add_conditional_edges(
     {"chatbot": "chatbot", END: END}
 )
 
-# 4. التوجيه بعد الموديل
-# إذا طلب أداة → tools
-# إذا لم يطلب → فحص المخرجات
+# 4. Conditional routing after chatbot
+# If tool call requested → tools node
+# If no tool call → output guardrail
 graph_builder.add_conditional_edges(
     "chatbot",
     tools_condition,
     {"tools": "tools", END: "output_guardrail"}
 )
 
-# 5. بعد الأدوات → يعود للموديل
+# 5. After tools → back to chatbot
 graph_builder.add_edge("tools", "chatbot")
 
-# 6. بعد فحص المخرجات → ينتهي
+# 6. After output guardrail → END
 graph_builder.add_edge("output_guardrail", END)
 
 # ============================================================
-# تجميع المخطط
+# Compile the graph
 # ============================================================
 agent_graph = graph_builder.compile()

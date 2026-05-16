@@ -5,7 +5,8 @@
     "description": "جوال آيفون 15 برو ذاكرة 256 جيجا لون تيتانيوم كاميرا 48 ميجابكسل شاشة 6.1 انش",
     "price_ils": 4500,
     "category": "الهواتف الذكية",
-    "stock": 10
+    "stock": 10,
+    "image": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p2",
@@ -13,7 +14,8 @@
     "description": "لابتوب ديل بمعالج كور i7 الجيل الثالث عشر رامات 16 جيجا SSD 512 جيجا شاشة 15.6 انش مناسب للبرمجة والتصميم",
     "price_ils": 6200,
     "category": "الحواسيب",
-    "stock": 5
+    "stock": 5,
+    "image": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p3",
@@ -21,7 +23,8 @@
     "description": "سماعات بلوتوث الجيل الثاني مع عزل ضوضاء ممتاز بطارية تدوم 6 ساعات مقاومة للماء",
     "price_ils": 950,
     "category": "الصوتيات",
-    "stock": 25
+    "stock": 25,
+    "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p4",
@@ -29,7 +32,8 @@
     "description": "جوال سامسونج جالاكسي S24 الترا ذاكرة 256 جيجا رامات 12 جيجا كاميرا 200 ميجابكسل شاشة 6.8 انش قلم S-Pen",
     "price_ils": 4800,
     "category": "الهواتف الذكية",
-    "stock": 8
+    "stock": 8,
+    "image": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p5",
@@ -37,7 +41,8 @@
     "description": "تابلت ابل ايباد اير شاشة 10.9 انش معالج M1 ذاكرة 64 جيجا مناسب للدراسة والرسم",
     "price_ils": 2800,
     "category": "الاجهزة اللوحية",
-    "stock": 12
+    "stock": 12,
+    "image": "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p6",
@@ -45,7 +50,8 @@
     "description": "لابتوب لينوفو ثينك باد بمعالج كور i5 رامات 8 جيجا SSD 256 جيجا شاشة 14 انش خفيف ومناسب للشغل والدراسة",
     "price_ils": 3200,
     "category": "الحواسيب",
-    "stock": 7
+    "stock": 7,
+    "image": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p7",
@@ -53,7 +59,8 @@
     "description": "ساعة ذكية ابل واتش الاصدار التاسع شاشة 45 ملم مقاومة للماء تتبع صحي ورياضي",
     "price_ils": 1800,
     "category": "الساعات الذكية",
-    "stock": 15
+    "stock": 15,
+    "image": "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p8",
@@ -61,7 +68,8 @@
     "description": "شاشة كمبيوتر سامسونج 27 انش دقة 4K UHD مناسبة للتصميم والالعاب معدل تحديث 60Hz",
     "price_ils": 1500,
     "category": "الشاشات",
-    "stock": 6
+    "stock": 6,
+    "image": "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p9",
@@ -69,7 +77,8 @@
     "description": "ماوس لاسلكي لوجيتك احترافي للمصممين والمبرمجين بطارية تدوم 70 يوم اتصال بلوتوث",
     "price_ils": 450,
     "category": "الاكسسوارات",
-    "stock": 20
+    "stock": 20,
+    "image": "https://images.unsplash.com/photo-1585565804112-f201f68c48b4?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p10",
@@ -77,7 +86,8 @@
     "description": "كيبورد ميكانيكي للالعاب اضاءة RGB مفاتيح حمراء مريحة للكتابة والالعاب",
     "price_ils": 200,
     "category": "الاكسسوارات",
-    "stock": 30
+    "stock": 30,
+    "image": "https://images.unsplash.com/photo-1585565804112-f201f68c48b4?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p11",
@@ -85,7 +95,8 @@
     "description": "سماعات راس سوني لاسلكية مع عزل ضوضاء ممتاز بطارية 30 ساعة صوت عالي الجودة",
     "price_ils": 1600,
     "category": "الصوتيات",
-    "stock": 10
+    "stock": 10,
+    "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p12",
@@ -93,7 +104,8 @@
     "description": "شاحن سريع انكر 65 واط يشحن لابتوب وجوال بنفس الوقت منفذين USB-C",
     "price_ils": 180,
     "category": "الاكسسوارات",
-    "stock": 40
+    "stock": 40,
+    "image": "https://images.unsplash.com/photo-1585565804112-f201f68c48b4?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p13",
@@ -101,7 +113,8 @@
     "description": "لابتوب اتش بي بمعالج رايزن 5 رامات 8 جيجا SSD 512 جيجا شاشة 15.6 انش مناسب للاستخدام اليومي والدراسة",
     "price_ils": 2500,
     "category": "الحواسيب",
-    "stock": 9
+    "stock": 9,
+    "image": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p14",
@@ -109,7 +122,8 @@
     "description": "جوال شاومي ذاكرة 128 جيجا رامات 8 جيجا كاميرا 200 ميجابكسل بطارية 5000 ملي امبير سعر اقتصادي",
     "price_ils": 1200,
     "category": "الهواتف الذكية",
-    "stock": 20
+    "stock": 20,
+    "image": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p15",
@@ -117,7 +131,8 @@
     "description": "بطارية متنقلة انكر سعة 20000 ملي امبير شحن سريع منفذين USB مناسب للسفر",
     "price_ils": 150,
     "category": "الاكسسوارات",
-    "stock": 35
+    "stock": 35,
+    "image": "https://images.unsplash.com/photo-1585565804112-f201f68c48b4?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p16",
@@ -125,7 +140,8 @@
     "description": "لابتوب العاب ايسوس بمعالج كور i7 كرت شاشة RTX 4060 رامات 16 جيجا SSD 512 جيجا شاشة 15.6 انش 144Hz",
     "price_ils": 5500,
     "category": "الحواسيب",
-    "stock": 3
+    "stock": 3,
+    "image": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p17",
@@ -133,7 +149,8 @@
     "description": "تابلت سامسونج شاشة 11 انش معالج سنابدراجون ذاكرة 128 جيجا مع قلم S-Pen مناسب للدراسة والعمل",
     "price_ils": 3000,
     "category": "الاجهزة اللوحية",
-    "stock": 6
+    "stock": 6,
+    "image": "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p18",
@@ -141,7 +158,8 @@
     "description": "كاميرا ويب لوجيتك بدقة 1080p مناسبة للاجتماعات والبث المباشر والمحاضرات اونلاين",
     "price_ils": 350,
     "category": "الاكسسوارات",
-    "stock": 15
+    "stock": 15,
+    "image": "https://images.unsplash.com/photo-1585565804112-f201f68c48b4?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p19",
@@ -149,7 +167,8 @@
     "description": "ساعة ذكية سامسونج شاشة 44 ملم تتبع صحي ورياضي مقاومة للماء بطارية تدوم يومين",
     "price_ils": 1200,
     "category": "الساعات الذكية",
-    "stock": 10
+    "stock": 10,
+    "image": "https://images.unsplash.com/photo-1579586337278-3befd40fd17a?q=80&w=400&auto=format&fit=crop"
   },
   {
     "id": "p20",
@@ -157,6 +176,7 @@
     "description": "سبيكر بلوتوث محمول جي بي ال مقاوم للماء بطارية 12 ساعة صوت قوي وواضح مناسب للرحلات",
     "price_ils": 500,
     "category": "الصوتيات",
-    "stock": 18
+    "stock": 18,
+    "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=400&auto=format&fit=crop"
   }
 ]

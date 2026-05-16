@@ -3,14 +3,14 @@ from datetime import datetime
 
 def init_db(db_path: str = "orders.db"):
     """
-    تقوم بإنشاء قاعدة بيانات SQLite وجدول الطلبات إذا لم يكن موجوداً.
+    Creates the SQLite database and orders table if they don't exist.
+    Also handles schema migration for older databases.
     """
-    # 1. فتح اتصال (وإذا الملف مش موجود رح يتم إنشاؤه تلقائياً)
+    # 1. Open connection (file is auto-created if it doesn't exist)
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    # 2. أمر SQL لإنشاء الجدول
-    # استخدمنا IF NOT EXISTS عشان لو شغلنا الكود مرتين ما يعطي خطأ وما يمسح بياناتنا القديمة
+    # 2. Create orders table (IF NOT EXISTS prevents errors on re-runs)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,7 +24,7 @@ def init_db(db_path: str = "orders.db"):
         )
     ''')
     
-    # محاولة إضافة الحقول للجدول القديم إن وجدت
+    # Migrate: add new columns to older table schemas if they exist
     try:
         cursor.execute('ALTER TABLE orders ADD COLUMN city TEXT')
         cursor.execute('ALTER TABLE orders ADD COLUMN address TEXT')
@@ -32,22 +32,21 @@ def init_db(db_path: str = "orders.db"):
     except sqlite3.OperationalError:
         pass
     
-    # 3. حفظ التغييرات (Commit) وإغلاق الجسر (Close)
+    # 3. Commit changes and close connection
     conn.commit()
     conn.close()
 
 
 def save_order(product_id: str, customer_name: str, customer_phone: str, city: str = "", address: str = "", payment_method: str = "", db_path: str = "orders.db"):
     """
-    تقوم بحفظ بيانات الطلب الجديد في قاعدة البيانات.
+    Saves a new order to the database and returns the order ID.
+    Uses parameterized queries to prevent SQL injection.
     """
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # أمر SQL لإدخال البيانات
-        # ملاحظة أمنية: بنستخدم علامات الاستفهام (?) بدل ما ندمج النصوص مباشرة 
-        # عشان نمنع ثغرة أمنية خطيرة اسمها (SQL Injection)
+        # Parameterized query (? placeholders) to prevent SQL injection
         cursor.execute('''
             INSERT INTO orders (product_id, customer_name, customer_phone, city, address, payment_method)
             VALUES (?, ?, ?, ?, ?, ?)

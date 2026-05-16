@@ -4,22 +4,22 @@ from langgraph.graph.message import add_messages
 
 class AgentState(TypedDict):
     """
-    حالة النظام المركزية - تتنقل بين كل العُقد في الـ Graph.
+    Central system state - flows between all nodes in the Graph.
     
-    تم ترقيتها من مجرد "ذاكرة رسائل" إلى State Machine كامل يتتبع:
-    - messages: سجل المحادثة الكامل
-    - funnel_stage: المرحلة الحالية في قمع المبيعات (Sales Funnel)
-    - guardrail_passed: هل الرسالة آمنة ومرتبطة بعمل المتجر
+    Upgraded from a simple message memory to a full State Machine that tracks:
+    - messages: Complete conversation history
+    - funnel_stage: Current stage in the Sales Funnel
+    - guardrail_passed: Whether the last message is safe and store-related
     """
-    # سجل المحادثة - الـ Reducer يضمن تراكم الرسائل بدون مسح
+    # Conversation history - Reducer ensures messages accumulate without overwriting
     messages: Annotated[Sequence[BaseMessage], add_messages]
     
-    # مرحلة قمع المبيعات (Sales Funnel Stage)
-    # greeting   = ترحيب واستكشاف أولي
-    # discovery  = جمع متطلبات العميل (الاستخدام + الميزانية)
-    # pitching   = عرض المنتجات من نتائج البحث
-    # closing    = تأكيد الشراء وجمع بيانات الطلب
+    # Sales Funnel Stage:
+    # greeting   = Initial welcome and exploration
+    # discovery  = Gathering customer requirements (usage + budget)
+    # pitching   = Presenting products from search results
+    # closing    = Confirming purchase and collecting order details
     funnel_stage: str
     
-    # نتيجة فحص الحماية - هل الرسالة الأخيرة آمنة أم لا
+    # Guardrail check result - whether the last message is safe or not
     guardrail_passed: bool

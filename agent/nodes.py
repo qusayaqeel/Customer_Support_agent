@@ -1,13 +1,15 @@
 """
-nodes.py - عُقد النظام (System Nodes)
+nodes.py - System Nodes
 
-المعمارية الجديدة تحتوي على 3 عُقد رئيسية:
-1. input_guardrail - حارس البوابة: يفحص الرسالة قبل أن تصل للموديل
-2. chatbot         - العقل المدبر: أبو العبد يتحدث مع العميل
-3. tools_node      - الميكانيكا: تشغيل أدوات البحث وحفظ الطلبات
+The architecture contains 4 main nodes:
+1. input_guardrail - Gate Keeper: inspects message before it reaches the LLM
+2. chatbot         - The Brain: AI assistant talks with the customer
+3. tools_node      - Mechanics: runs search and order-saving tools
+4. output_guardrail - Output Validator: checks prices against search results
 """
 import os
 import re
+from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
 from langgraph.prebuilt import ToolNode
 from langchain_core.messages import SystemMessage, AIMessage
@@ -15,14 +17,14 @@ from langchain_core.messages import SystemMessage, AIMessage
 from agent.tools import tools
 
 # ============================================================
-# 1. عقدة حارس البوابة (Input Guardrail Node)
+# 1. Input Guardrail Node
 # ============================================================
-# هذه العقدة تعمل قبل الموديل - فلتر برمجي لا يعتمد على الـ LLM
-# تفحص رسالة العميل وتقرر: هل يمر للموديل أم يتم حظره؟
+# This node runs BEFORE the LLM - a programmatic filter that doesn't rely on AI.
+# It inspects the customer's message and decides: pass to LLM or block?
 
-# قائمة أنماط Prompt Injection الشائعة
+# Common Prompt Injection patterns
 INJECTION_PATTERNS = [
-    # === الأنماط الأساسية ===
+    # === Basic patterns ===
     r"ignore.*(?:previous|all|above).*instructions",
     r"forget.*(?:everything|instructions|rules)",
     r"you are now",
@@ -36,50 +38,55 @@ INJECTION_PATTERNS = [
     r"اعرض.*(?:التعليمات|النظام|البرومبت)",
     r"شو.*(?:التعليمات|الاوامر).*(?:الداخلية|تبعتك)",
     
-    # === هجوم استخراج التعليمات (Leakage) ===
+    # === Instruction leakage attacks ===
     r"(?:ارسل|اعرض|اكتب|حطلي|ابعث).*(?:system prompt|البرومبت|التعليمات|الأوامر)",
     r"(?:مدير|ادمن|admin|مسؤول).*(?:النظام|الجديد|system)",
     r"(?:لمراجعت|لفحص|review).*(?:التعليمات|prompt)",
     
-    # === هجوم الترجمة المخفية (Translate Attack) ===
+    # === Hidden translation attacks ===
     r"translate.*(?:following|this|these)",
     r"(?:ترجم|حول).*(?:التالي|هذا|الآتي)",
     
-    # === هجوم تقمص الأدوار (Roleplay Attack) ===
+    # === Roleplay attacks ===
     r"(?:نلعب|خلينا نلعب|لعبة|play a game)",
     r"(?:لست|مش|مانك).*(?:بائع|بياع)",
     r"(?:خبير|هاكر|مبرمج|مهندس).*(?:أمني|أمن|security)",
     r"(?:اختراق|اخترق|hack).*(?:قاعدة|بيانات|database|متجر)",
     
-    # === هجمات بالإنجليزي ===
+    # === English attacks ===
     r"ignore.*(?:your|the).*(?:rules|instructions|role)",
     r"you.*(?:are|were).*(?:hacked|compromised|pwned)",
     r"(?:write|code|script|program).*(?:python|javascript|sql|code)",
     r"(?:اكتب|برمج).*(?:كود|سكربت|برنامج)",
+    
+    # === Admin impersonation ===
+    r"(?:مدير|ادارة).*(?:نظام|النظام|system|admin)",
+    r"(?:system prompt|system instructions)",
 ]
 
-# كلمات مفتاحية لمواضيع خارج نطاق المتجر
+# Keywords for topics outside the store's scope
 OFF_TOPIC_PATTERNS = [
     r"(?:سياسة|حرب|انتخابات|رئيس|حزب)",
-    r"(?:دين|فتوى|حلال|حرام)",
+    r"(?:^|\s)(?:دين|فتوى|حلال|حرام)(?:\s|$)",
     r"(?:طبخ|وصفة|اكل)",
     r"(?:رياضة|كورة|مباراة)",
+    r"(?:غسالة|ثلاجة|مكيف|تلفزيون|مكواة|نشافة|أجهزة منزلية)",
 ]
 
 
 def input_guardrail(state):
     """
-    حارس البوابة - يفحص رسالة العميل برمجياً قبل وصولها للموديل.
+    Gate Keeper - programmatically inspects the customer's message before it reaches the LLM.
     
-    القرارات:
-    - إذا كانت الرسالة آمنة: guardrail_passed = True → تمر للموديل
-    - إذا كانت خطيرة: guardrail_passed = False → يتم حظرها ويُرد تلقائياً
+    Decisions:
+    - Safe message: guardrail_passed = True → passes to LLM
+    - Dangerous message: guardrail_passed = False → blocked with auto-reply
     
-    الفائدة: الموديل لا يرى الرسالة الخطيرة أصلاً (لا فرصة للتلاعب)
+    Benefit: The LLM never sees dangerous messages (no chance for manipulation)
     """
     last_message = state["messages"][-1].content.lower().strip()
     
-    # فحص 1: هل الرسالة محاولة Prompt Injection؟
+    # Check 1: Is this a Prompt Injection attempt?
     for pattern in INJECTION_PATTERNS:
         if re.search(pattern, last_message, re.IGNORECASE):
             return {
@@ -87,23 +94,23 @@ def input_guardrail(state):
                 "messages": [AIMessage(content="كيف بقدر اساعدك بالمنتجات؟")]
             }
     
-    # فحص 2: هل الموضوع خارج نطاق المتجر؟
+    # Check 2: Is the topic outside the store's scope?
     for pattern in OFF_TOPIC_PATTERNS:
         if re.search(pattern, last_message, re.IGNORECASE):
             return {
                 "guardrail_passed": False,
-                "messages": [AIMessage(content="انا ابو العبد متخصص بالالكترونيات بس شو بدك تشوف عنا؟")]
+                "messages": [AIMessage(content="يا هلا، أنا مساعد سمارت ستور متخصص بالالكترونيات الذكية، شو بدك تشوف عنا؟")]
             }
     
-    # الرسالة آمنة - تمريرها للموديل
+    # Message is safe - pass it to the LLM
     return {"guardrail_passed": True}
 
 
 # ============================================================
-# 2. عقدة المحادثة (Chatbot Node) - أبو العبد
+# 2. Chatbot Node - Smart Store Assistant
 # ============================================================
 
-SYSTEM_PROMPT = """You are Abu Al-Abd (أبو العبد), a highly experienced, friendly, and smart electronics salesman at "Smart Store" (سمارت ستور) in Palestine.
+SYSTEM_PROMPT = """You are the smart AI assistant for "Smart Store" (سمارت ستور) in Palestine. You are a highly experienced, friendly, and smart electronics salesman.
 
 === CRITICAL LANGUAGE RULE ===
 ALL YOUR RESPONSES MUST BE IN PALESTINIAN ARABIC DIALECT ONLY.
@@ -128,52 +135,111 @@ The ONLY way to know what the store sells is by calling the `search_store_produc
 
 RULES:
 1. NEVER mention ANY product name or price unless it was returned by the tool in this conversation.
-2. If the tool returns results, discuss ONLY those exact products.
-3. If the tool returns "لا توجد نتائج مطابقة", say we don't have it currently, but you can order it specially for them. Do NOT suggest products from your memory.
-4. الأسعار ثابتة ونهائية. ممنوع تقديم أي خصم. إذا طلب العميل خصماً، اعتذر بلطف وأخبره أن السعر ثابت. يُمنع منعاً باتاً اختراع خصم أو تعديل السعر.
-
+2. If the tool returns results, do NOT list the products or their specs in your message. Instead, say something natural like: "يا هلا! لقيتلك هالخيارات بتناسب ميزانيتك، شوف البطاقات تحت وأي واحد بعجبك اكبس عليه." The frontend will display them.
+3. If the tool returns "لا توجد نتائج مطابقة", say we don't have it currently. Do NOT suggest products from your memory.
+4. الأسعار ثابتة ونهائية. ممنوع تقديم أي خصم. يُمنع منعاً باتاً اختراع خصم.
+5. ممنوع مطابقة أسعار المنافسين (No Price Matching). السعر لدينا ثابت.
+6. ممنوع تقديم هدايا مجانية (No Free Gifts or Bundles) إلا إذا كانت مكتوبة صراحة في الوصف.
+7. أجب بناءً على وصف المنتج فقط. إذا سألك العميل عن تفاصيل غير موجودة (مثل سعة البطارية)، قل "المواصفات المتوفرة عندي هي كذا، باقي التفاصيل مش متوفرة حالياً".
+8. ممنوع إجراء أي عمليات حسابية للإجمالي. اترك ذلك للنظام.
 === CLOSING THE SALE ===
-When the user agrees to buy a specific product, YOU MUST GATHER ALL REQUIRED INFORMATION BEFORE CALLING THE TOOL.
-Do not call `save_customer_order` until you ask the user for ALL of the following:
-1. الاسم (Name)
-2. رقم الجوال الفلسطيني (Phone Number: 059 or 056)
-3. المدينة والعنوان بالتفصيل (City and Address)
-4. طريقة الدفع (Payment Method: كاش أو عند الاستلام)
+When the user clicks the "Buy" button on a product card, they will trigger a hidden intent. YOU MUST GATHER ALL REQUIRED INFORMATION BEFORE CALLING THE TOOL.
+Do not call `save_customer_order` until the user provides ALL of the following:
+1. الاسم الكامل (Name) - لا تقبل حرف واحد أو كلمة فارغة.
+2. رقم الجوال الفلسطيني - يجب أن يكون 10 أرقام ويبدأ بـ 059 أو 056. مثال: 0591234567 أو 0561234567. إذا أعطاك رقماً ناقصاً أو لا يبدأ بـ 059/056، اطلب منه التصحيح مع ذكر المثال.
+3. المدينة والعنوان بالتفصيل (City and Address) - لا تقبل بدون مدينة واضحة.
+4. طريقة الدفع (Payment Method: كاش أو عند الاستلام).
 
-Ask for these details naturally in one message. Once provided, use `save_customer_order` with the EXACT Product ID.
+VALIDATION RULES:
+- إذا أعطاك العميل اسمه فقط بدون الباقي، اشكره واطلب باقي المعلومات (الرقم والعنوان وطريقة الدفع).
+- إذا أعطاك اسمه ورقمه بدون عنوان، اطلب المدينة والعنوان.
+- إذا نسي أي حقل، ذكّره بلطف واطلبه منه بشكل محدد.
+- لا تستدعي أداة الحفظ أبداً إذا كان أي حقل ناقصاً أو غير صحيح.
+
+IMPORTANT: DO NOT GUESS OR INVENT THE PRODUCT ID. If the user provides their info but hasn't explicitly specified which product they want to buy (and hasn't clicked Buy), YOU MUST ASK THEM: "أي منتج بدك تطلب؟" BEFORE calling the tool.
+
+Ask for these details naturally in one message. Once ALL details are provided and valid, use `save_customer_order` with the EXACT Product ID.
 
 [TOOL CALLING RULES]
 - When you want to use a tool, DO NOT output any conversational text before it. Just call the tool.
 - Only use the built-in tool_calls system."""
 
-# إعداد الموديل: llama-4-scout يدعم Tool Calling على Groq بشكل سليم
-# الهلوسة السابقة كانت بسبب ضعف الـ Prompt وليس حجم الموديل
-llm = ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct", api_key=os.getenv("GROQ_API_KEY"), temperature=0.1)
-llm_with_tools = llm.bind_tools(tools)
+# === Multi-Model Failover System ===
+# If the primary model hits rate limits, automatically fall back to the next one
+MODELS = [
+    {
+        "name": "Gemini 2.0 Flash (OpenRouter)",
+        "llm": ChatOpenAI(
+            model="google/gemini-2.0-flash-001",
+            openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+            openai_api_base="https://openrouter.ai/api/v1",
+            temperature=0.3,
+            default_headers={"HTTP-Referer": "http://localhost:3000", "X-Title": "Smart Store"}
+        )
+    },
+    {
+        "name": "Maverick (Groq)",
+        "llm": ChatGroq(
+            model="meta-llama/llama-4-maverick-17b-128e-instruct",
+            api_key=os.getenv("GROQ_API_KEY"),
+            temperature=0.3
+        )
+    },
+]
+
+# Bind tools to each model
+for m in MODELS:
+    m["llm_with_tools"] = m["llm"].bind_tools(tools)
 
 
 def chatbot(state):
     """
-    عقدة المحادثة - أبو العبد.
-    تستقبل الحالة وتمررها للموديل مع الـ System Prompt.
+    Main chatbot node for the AI assistant.
+    Receives the state and passes it to the LLM with the System Prompt.
+    Falls back to the next model if the primary one fails.
     """
     messages = state["messages"]
     funnel_stage = state.get("funnel_stage", "greeting")
     
-    # إرسال الـ System Prompt مباشرة بدون stage_context المتناقض
-    response = llm_with_tools.invoke([SystemMessage(content=SYSTEM_PROMPT)] + messages)
+    # === Memory Pruning (Sliding Window) ===
+    MEMORY_WINDOW = 15
     
-    # تحديث مرحلة القمع بناءً على سلوك الموديل
+    if len(messages) > MEMORY_WINDOW:
+        chat_history = list(messages[-MEMORY_WINDOW:])
+        # Ensure at least one tool result is preserved for context
+        has_tool_msg = any(getattr(m, "name", None) == "search_store_products" for m in chat_history)
+        if not has_tool_msg:
+            for msg in reversed(messages[:-MEMORY_WINDOW]):
+                if getattr(msg, "name", None) == "search_store_products":
+                    chat_history.insert(0, msg)
+                    break
+    else:
+        chat_history = messages
+    
+    # === Try models in order (failover) ===
+    prompt = [SystemMessage(content=SYSTEM_PROMPT)] + chat_history
+    response = None
+    for model_info in MODELS:
+        try:
+            response = model_info["llm_with_tools"].invoke(prompt)
+            print(f"[Model] Using: {model_info['name']}")
+            break
+        except Exception as e:
+            print(f"[Model] {model_info['name']} failed: {str(e)[:80]}")
+            continue
+    
+    if response is None:
+        raise Exception("All models are currently unavailable")
+    
+    # Update funnel stage based on model behavior
     new_stage = funnel_stage
     if response.tool_calls:
-        # إذا الموديل طلب أداة بحث ← ننتقل لمرحلة العرض بعد البحث
         for tc in response.tool_calls:
             if tc["name"] == "search_store_products":
                 new_stage = "pitching"
             elif tc["name"] == "save_customer_order":
                 new_stage = "closing"
     elif funnel_stage == "greeting":
-        # إذا العميل بدأ يحكي عن منتج ← ننتقل للاستكشاف
         new_stage = "discovery"
     
     return {
@@ -183,62 +249,62 @@ def chatbot(state):
 
 
 # ============================================================
-# 3. عقدة الأدوات (Tools Node)
+# 3. Tools Node
 # ============================================================
 tools_node = ToolNode(tools=tools)
 
 
 # ============================================================
-# 4. عقدة فحص المخرجات (Output Guardrail)
+# 4. Output Guardrail Node
 # ============================================================
 def output_guardrail(state):
     """
-    حارس المخرجات - يعمل بعد الموديل وقبل إرسال الرسالة للعميل.
-    الهدف: منع الهلوسة (اختراع أسعار أو منتجات غير موجودة).
+    Output guard - runs after the LLM and before sending the message to the customer.
+    Validates that any prices mentioned in the response match actual search results.
     """
     messages = state["messages"]
     if not messages:
         return {}
         
     last_message = messages[-1]
-    
-    # نتجاهل الفحص إذا كان استدعاء أداة أو ليس رسالة ذكاء اصطناعي
     if not getattr(last_message, "content", None) or getattr(last_message, "tool_calls", None):
         return {}
         
+    # Trim memory window to match chatbot context (avoid stale price hallucinations)
+    if len(messages) > 14:
+        recent_messages = messages[-14:]
+    else:
+        recent_messages = messages
+        
     ai_text = last_message.content
     
-    # البحث عن محتوى آخر استدعاء لأداة البحث
-    last_tool_content = ""
-    for msg in reversed(messages):
-        if getattr(msg, "name", None) == "search_store_products":
-            last_tool_content = getattr(msg, "content", "")
-            break
-            
-    # استخراج الأرقام التي تدل على السعر فقط (قبلها بـ/سعر أو بعدها شيكل)
+    # Skip guardrail during closing stage (to avoid blocking phone numbers or order IDs)
+    if state.get("funnel_stage") == "closing":
+        return {}
+        
     import re
-    price_pattern = r'(?:سعر|بـ|سعره|ب)\s*(\d+(?:,\d+)?)|(\d+(?:,\d+)?)\s*(?:شيكل|شاقل|شيقل)'
+    # Extract prices mentioned by the model in its response
+    # Exclude numbers starting with 0 (phone numbers like 059) since prices don't start with 0
+    price_pattern = r'(?:سعر|بـ|سعره)\s*([1-9]\d*(?:,\d+)?)\s*(?:شيكل|شاقل)?|([1-9]\d*(?:,\d+)?)\s*(?:شيكل|شاقل|شيقل)'
     matches = re.findall(price_pattern, ai_text)
     
     mentioned_numbers = []
     for match in matches:
         num_str = match[0] if match[0] else match[1]
         try:
-            val = int(num_str.replace(',', ''))
-            mentioned_numbers.append(val)
+            mentioned_numbers.append(int(num_str.replace(',', '')))
         except:
             pass
             
-    # إذا لم يذكر أي سعر، فالرد آمن
     if not mentioned_numbers:
         return {}
         
-    # التحقق من وجود كلمات تدل على السعر
+    # Check for price-related keywords
     price_keywords = ["شيكل", "شيكل", "سعر", "بـ", "سعره"]
     has_price_context = any(keyword in ai_text for keyword in price_keywords)
     
     if has_price_context:
-        # استخراج الأرقام من جميع نتائج البحث في المحادثة وليس الأخيرة فقط
+        # Extract numbers from ALL search results in the conversation (not just the latest)
         tool_numbers = []
         for msg in messages:
             if getattr(msg, "name", None) == "search_store_products":
@@ -250,7 +316,7 @@ def output_guardrail(state):
                     except:
                         pass
                 
-        # السماح للموديل باقتباس أي رقم ذكره العميل في المحادثة (لرفضه أو مناقشته)
+        # Allow the model to quote any number the customer mentioned (for discussing/rejecting it)
         user_numbers = []
         for msg in messages:
             if getattr(msg, "type", "") == "human":
@@ -263,7 +329,7 @@ def output_guardrail(state):
                     except:
                         pass
                         
-        # إذا لم يكن هناك نتائج بحث، لكن الموديل ذكر سعراً، فهذه هلوسة مؤكدة!
+        # If no search results exist but the model mentioned a price → confirmed hallucination
         if not tool_numbers:
             return {
                 "messages": [AIMessage(
@@ -272,11 +338,10 @@ def output_guardrail(state):
                 )]
             }
             
-        # التحقق من كل سعر ذكره الموديل
+        # Validate each price mentioned by the model
         for num_val in mentioned_numbers:
             price_valid = False
             for t_val in tool_numbers:
-                # يجب أن يطابق السعر المذكور أحد الأسعار أو الأرقام المسموحة تماماً
                 if num_val == t_val:
                     price_valid = True
                     break

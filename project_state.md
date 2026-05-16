@@ -1,155 +1,158 @@
-# Abu Al-Abd - Smart Store AI Agent
-## حالة المشروع (Project State)
+# Smart Store AI Agent - Project State
 
-### فكرة المشروع
-بوت تيليجرام ذكي يعمل كبائع إلكترونيات فلسطيني اسمه "أبو العبد" لمتجر "سمارت ستور".
-يستخدم RAG للبحث عن المنتجات وLangGraph كـ State Machine لإدارة مسار المحادثة.
+## Project Overview
+A Telegram/Web AI chatbot acting as a Palestinian electronics salesman called "Abu Al-Abd" for "Smart Store".
+Uses RAG for product search and LangGraph as a State Machine for conversation flow management.
 
 ---
 
-### التقنيات المستخدمة (Tech Stack)
-| التقنية | الاستخدام |
+## Tech Stack
+| Technology | Usage |
 |---|---|
-| **LangGraph** | State Machine لإدارة مسار المحادثة (Nodes + Edges) |
+| **LangGraph** | State Machine for conversation flow (Nodes + Edges) |
 | **LangChain** | LLM Integration + Tool Binding |
-| **Groq** | LLM Provider (meta-llama/llama-4-scout-17b-16e-instruct) |
-| **ChromaDB** | Vector Database للبحث الدلالي عن المنتجات (RAG) |
-| **FastAPI** | API Server + Telegram Webhook |
-| **SQLite** | قاعدة بيانات الطلبات |
-| **Ngrok** | Tunnel لربط السيرفر المحلي بتيليجرام |
+| **OpenRouter** | Primary LLM Provider (Gemini 2.0 Flash) |
+| **Groq** | Fallback LLM Provider (Llama 4 Maverick) |
+| **ChromaDB** | Vector Database for semantic product search (RAG) |
+| **FastAPI** | API Server |
+| **SQLite** | Orders database |
+| **React + Vite** | Web frontend (chat UI + product cards) |
 
 ---
 
-### هيكل المشروع (Project Structure)
+## Project Structure
 ```
 Customer_Support_agent/
-├── main.py                  # نقطة الدخول - FastAPI + تهيئة قواعد البيانات
-├── requirements.txt         # الاعتمادات
-├── .env                     # مفاتيح API (GROQ_API_KEY, TELEGRAM_BOT_TOKEN)
+├── main.py                  # Entry point - FastAPI + DB initialization
+├── requirements.txt         # Dependencies
+├── .env                     # API keys (OPENROUTER_API_KEY, GROQ_API_KEY)
 │
-├── agent/                   # طبقة الـ AI Agent (LangGraph)
+├── agent/                   # AI Agent layer (LangGraph)
 │   ├── state.py             # AgentState: messages + funnel_stage + guardrail_passed
-│   ├── nodes.py             # العُقد: input_guardrail → chatbot → output_guardrail
-│   ├── graph.py             # المخطط: توصيل العُقد والتوجيه الشرطي
-│   └── tools.py             # أدوات LangChain: search_store_products + save_customer_order
+│   ├── nodes.py             # Nodes: input_guardrail → chatbot → output_guardrail
+│   ├── graph.py             # Graph: wiring nodes and conditional edges
+│   └── tools.py             # LangChain tools: search_store_products + save_customer_order
 │
 ├── api/
-│   └── webhook.py           # Telegram Webhook + session management
+│   ├── chat.py              # REST API endpoint for web frontend
+│   └── webhook.py           # Telegram Webhook (optional)
 │
 ├── core/
-│   ├── rag.py               # ChromaDB: init_vector_store + search_products (Strict RAG)
-│   └── agent.py             # [قديم - غير مستخدم] النظام الخطي السابق
+│   └── rag.py               # ChromaDB: init_vector_store + search_products (Strict RAG)
 │
 ├── db/
 │   └── database.py          # SQLite: init_db + save_order
 │
 ├── data/
-│   └── products.json        # كتالوج المنتجات (20 منتج)
+│   └── products.json        # Product catalog (20 products)
 │
-└── chroma_db/               # قاعدة بيانات المتجهات (يُعاد بناؤها تلقائياً)
+├── frontend/                # React (Vite) web frontend
+│
+├── tests/                   # Test suite (guardrails, RAG, DB, integration, pipeline, hallucination)
+│
+└── chroma_db/               # Vector database (auto-rebuilt from products.json)
 ```
 
 ---
 
-### المعمارية الحالية (Architecture)
+## Architecture
 ```
-رسالة تيليجرام
+User Message (Web / Telegram)
       │
       ▼
-  [webhook.py] → يستقبل الرسالة ويحفظ الجلسة
+  [FastAPI] → Session Management (Sliding Window + TTL)
       │
       ▼
-  [input_guardrail] → فحص برمجي (Regex): Prompt Injection + Off-Topic
+  [input_guardrail] → Programmatic check (Regex): Prompt Injection + Off-Topic
       │
   ┌───┴───┐
-  │ آمنة؟ │
+  │ Safe? │
   └───┬───┘
-   نعم│    لا → رد تلقائي → END
+   Yes│    No → Auto-reply → END
       ▼
-  [chatbot] → أبو العبد (LLM + System Prompt + Funnel Stage)
+  [chatbot] → LLM with System Prompt + Sales Funnel Stage
       │
   ┌───┴────┐
-  │ أداة؟  │
+  │ Tool?  │
   └───┬────┘
-   نعم│    لا
+   Yes│    No
       ▼      ▼
-  [tools] [output_guardrail] → فحص الأسعار والمنتجات → END
+  [tools] [output_guardrail] → Price validation → END
       │
       ▼
-  [chatbot] → يقرأ نتائج الأداة ويرد
+  [chatbot] → Reads tool results → responds
       │
       ▼
-  [output_guardrail] → فحص نهائي → END
+  [output_guardrail] → Final check → END
 ```
 
 ---
 
-### الحالة الحالية (Current Status) ✅
-- [x] LangGraph State Machine مع 4 عُقد
-- [x] Input Guardrail: حماية من Prompt Injection (Regex)
-- [x] Output Guardrail: Active Context State (فحص الأسعار ضد نتائج البحث)
-- [x] Strict RAG: فلترة بحسب similarity distance (threshold 1.5)
+## Current Status ✅
+- [x] LangGraph State Machine with 4 nodes
+- [x] Input Guardrail: Prompt Injection protection (Regex)
+- [x] Output Guardrail: Active Context State (price validation against search results)
+- [x] Strict RAG: Similarity distance filtering (threshold 1.2) + keyword fallback
 - [x] Sales Funnel: greeting → discovery → pitching → closing
-- [x] System Prompt بلهجة فلسطينية + 8 أقسام
-- [x] كتالوج 20 منتج متنوع (هواتف، حواسيب، صوتيات، ساعات، اكسسوارات)
-- [x] Tool Output Formatting: إخفاء stock من نتائج البحث
-- [x] ChromaDB يُعاد بناؤه من products.json كل مرة (delete + create)
+- [x] System Prompt in Palestinian dialect with 8 sections
+- [x] Product catalog: 20 diverse products (phones, laptops, audio, watches, accessories)
+- [x] Tool Output Formatting: stock hidden from search results
+- [x] ChromaDB rebuilt from products.json on first run
+- [x] Multi-Model Failover: Gemini Flash (OpenRouter) → Maverick (Groq)
+- [x] Web Frontend: React + Vite with glassmorphism dark theme
+- [x] REST API: /api/chat endpoint with session management
+- [x] Code cleanup: all comments converted to English
+- [x] Professional README in English
 
 ---
 
-### المشاكل المعروفة والتعديلات المطلوبة 🔧
+## Known Issues & Planned Improvements 🔧
 
-#### مشكلة 1: هلوسة المنتجات (Pre-trained Knowledge Leakage)
-**الوصف:** الموديل أحياناً يخترع منتجات غير موجودة في الداتا بيس (مثل Dell Inspiron 3000 بكود p101) أو يقترح منتجات من تصنيفات مختلفة (سأل عن لابتوب فيقترح كيبورد).
-**الحالة:** تم بناء Output Guardrail + Strict RAG + قواعد Prompt. بحاجة لاختبار شامل.
-**ملفات مرتبطة:** `agent/nodes.py` (output_guardrail), `core/rag.py` (max_distance), `agent/tools.py` (formatting)
+### Issue 1: Product Hallucination (Pre-trained Knowledge Leakage)
+**Description:** The model sometimes invents products not in the database (e.g., Dell Inspiron 3000 with code p101) or suggests products from wrong categories (asked for laptop, suggests keyboard).
+**Status:** Output Guardrail + Strict RAG + Prompt rules built. Needs comprehensive testing.
+**Related files:** `agent/nodes.py` (output_guardrail), `core/rag.py` (max_distance), `agent/tools.py` (formatting)
 
-#### مشكلة 2: أسلوب الرد غير طبيعي
-**الوصف:** الموديل أحياناً يرد بردود طويلة أو يستخدم لهجة مصرية أو فصحى بدل الفلسطينية.
-**الحل المقترح:** Few-shot examples في الـ Prompt + Post-processing في webhook.py
+### Issue 2: Unnatural Response Style
+**Description:** The model sometimes responds with long replies or uses Egyptian/Standard Arabic instead of Palestinian dialect.
+**Proposed fix:** Few-shot examples in the Prompt + Post-processing
 
-#### تعديل 3: تحديث دالة save_customer_order
-**الوصف:** الدالة الحالية تأخذ فقط (product_id, name, phone). المطلوب:
-- إضافة حقول: المدينة، العنوان، طريقة الدفع
-- Validation لرقم التلفون الفلسطيني (يبدأ بـ 059 أو 056، طوله 10 أرقام)
-- إرجاع رقم الطلب (Order ID) للعميل
-**ملفات مرتبطة:** `agent/tools.py`, `db/database.py`
+### Issue 3: Conversation Flow Validation
+**Description:** Need to design and validate the complete conversation workflow - what happens when users go off-script, skip steps, or take unexpected paths.
+**Proposed fix:** Draw complete workflow diagram, identify edge cases, implement validation for each state transition.
 
-#### تعديل 4: Structured Output + Telegram Inline Keyboards
-**الوصف:** بدلاً من إرسال نص طويل، المطلوب:
-- الموديل يرجع JSON منظم (product_id + short_pitch)
-- الـ webhook يبني Telegram Inline Keyboard (أزرار "اشتري" و "تفاصيل")
-**ملفات مرتبطة:** `api/webhook.py`, `agent/nodes.py`
+### Issue 4: Structured Output + Frontend Product Cards
+**Description:** Instead of sending long text, the model should:
+- Return structured JSON (product_id + short_pitch)
+- The frontend builds product cards with "Buy" and "Details" buttons
+**Related files:** `api/chat.py`, `agent/nodes.py`, `frontend/src/App.jsx`
 
-#### تعديل 5: إدارة الذاكرة (Session Management)
-**الوصف:** الجلسات في `user_sessions` (RAM) بدون حد. المطلوب:
-- تحديد عدد أقصى للرسائل (آخر 20 رسالة)
-- مسح الجلسة بعد 30 دقيقة من عدم النشاط
-- التعامل مع أمر /start لإعادة تعيين الجلسة
-**ملفات مرتبطة:** `api/webhook.py`
-
-#### تعديل 6: حذف core/agent.py
-**الوصف:** ملف قديم من النظام الخطي السابق قبل LangGraph. غير مستخدم حالياً.
+### Issue 5: Memory Management Improvements
+**Description:** Sessions in `user_sessions` (RAM) need better management:
+- Persist sessions across server restarts
+- Better sliding window that preserves tool call context
+**Related files:** `api/chat.py`, `api/webhook.py`
 
 ---
 
-### متغيرات البيئة المطلوبة (.env)
+## Environment Variables (.env)
 ```
-GROQ_API_KEY=gsk_...
-TELEGRAM_BOT_TOKEN=...
+OPENROUTER_API_KEY=...
+GROQ_API_KEY=...
+TELEGRAM_BOT_TOKEN=... (optional, for Telegram integration)
 ```
 
-### تشغيل المشروع
+## Running the Project
 ```bash
-# تثبيت الاعتمادات
+# Install dependencies
 pip install -r requirements.txt
 
-# تشغيل السيرفر
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+# Start the backend
+uvicorn main:app --reload
 
-# ربط Ngrok
-ngrok http 8000
+# Start the frontend
+cd frontend && npm install && npm run dev
 
-# تسجيل الـ Webhook في تيليجرام
-# https://api.telegram.org/bot<TOKEN>/setWebhook?url=<NGROK_URL>/webhook
+# Run tests (fast, no LLM)
+pytest tests/test_guardrails.py tests/test_rag.py tests/test_database.py -v
 ```

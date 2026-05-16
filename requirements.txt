@@ -7,4 +7,5 @@ python-dotenv
 pytest
 langgraph
 langchain-groq
+langchain-openai
 sentence-transformers
